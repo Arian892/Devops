@@ -2,7 +2,7 @@ name: Microservices CI/CD
 
 on:
   push:
-    branches: [ junaid ]
+    branches: [ main ]
   pull_request:
     branches: [ junaid ]
 
@@ -39,7 +39,7 @@ jobs:
 
       - name: Build and Start Services
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
           # Give services a moment to initialize
           sleep 15
 
@@ -81,4 +81,4 @@ jobs:
 
       - name: Shutdown Services
         if: always()
-        run: docker-compose down
+        run: docker compose down
