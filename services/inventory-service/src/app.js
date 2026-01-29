@@ -7,6 +7,52 @@ app.use(express.json());
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
+import amqp from 'amqplib';
+
+async function consumeMessages() {
+    const amqpUrl = 'amqp://admin:password@rabbitmq:5672';
+    try {
+        const connection = await amqp.connect(amqpUrl);
+        
+        connection.on("error", (err) => {
+            console.error("RabbitMQ connection error. Retrying...");
+            setTimeout(consumeMessages, 5000);
+        });
+
+        const channel = await connection.createChannel();
+        await channel.assertQueue('inventory_updates', { durable: true });
+        channel.prefetch(1);
+
+        console.log("Inventory Service connected and waiting for messages...");
+
+        channel.consume('inventory_updates', async (msg) => {
+            if (msg !== null) {
+                console.log("Received message:", msg.content.toString());
+                const { productId, quantity, orderId } = JSON.parse(msg.content.toString());
+                
+                try {
+                    await pool.query(
+                        'UPDATE inventory_service.inventory SET quantity = quantity - $1 WHERE product_id = $2',
+                        [quantity, productId]
+                    );
+                    console.log(`Inventory updated for Order: ${orderId}`);
+                    channel.ack(msg); 
+                } catch (err) {
+                    console.error("Failed to process message:", err);
+                    channel.nack(msg, false, true); 
+                }
+            }
+        });
+    } catch (err) {
+        console.error("RabbitMQ Connection Failed (Inventory). Retrying in 5s...");
+        setTimeout(consumeMessages, 5000);
+    }
+}
+
+consumeMessages();
+
+
+
 app.use(
   "/api/inventory-service/update-stock",
   injectGremlin({
@@ -82,6 +128,54 @@ app.post("/api/inventory-service/update-stock", async (req, res) => {
   }
 });
 
+app.get("/api/inventory-service/products", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM inventory_service.product");
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+app.post("/api/inventory-service/products", async (req, res) => {
+  const { name, price, initialQuantity } = req.body;
+
+  if (!name || !price) {
+    return res.status(400).json({ error: "Missing required product fields" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const productResult = await client.query(
+      "INSERT INTO inventory_service.product (name, price) VALUES ($1, $2) RETURNING id, name, price",
+      [name, price]
+    );
+
+    const newProductId = productResult.rows[0].id;
+
+    await client.query(
+      "INSERT INTO inventory_service.inventory (product_id, quantity) VALUES ($1, $2)",
+      [newProductId, initialQuantity || 0]
+    );
+
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      message: "Product created and inventory initialized",
+      product: productResult.rows[0]
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Product Creation Error:", err);
+    res.status(500).json({ error: "Database error while creating product" });
+  } finally {
+    client.release();
+  }
+});
 
 const PORT = 3001;
 app.listen(PORT, () =>

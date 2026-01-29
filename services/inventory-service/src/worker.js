@@ -9,7 +9,7 @@ async function startWorker() {
     const queue = 'inventory_updates';
 
     await channel.assertQueue(queue, { durable: true });
-    channel.prefetch(1); // Process one message at a time for safety
+    channel.prefetch(1);
 
     console.log("Inventory Worker is online and waiting for messages...");
 
