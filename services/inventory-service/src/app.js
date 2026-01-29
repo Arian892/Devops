@@ -10,9 +10,9 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 app.use(
   "/api/inventory-service/update-stock",
   injectGremlin({
-    failureRate: 0.9,
-    minDelay: 2000,
-    maxDelay: 7000,
+    failureRate: 0.1,
+    minDelay: 100,
+    maxDelay: 500,
   }),
 );
 
@@ -28,6 +28,18 @@ app.get('/api/inventory-service/health', async (req, res) => {
             status: 'DOWN',
             service: 'inventory-service',
             reason: 'Database unreachable'
+        });
+    }
+});
+
+app.get('/api/inventory-service/getProducts', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM inventory_service.inventory');
+        return res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        return res.status(500).json({
+            error: 'Failed to fetch products'
         });
     }
 });

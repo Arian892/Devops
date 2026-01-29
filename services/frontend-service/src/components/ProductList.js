@@ -31,7 +31,7 @@ function ProductList() {
     setQuantities(prev => {
       const currentQty = prev[productId] || 1;
       const newQty = Math.max(1, currentQty + change);
-      const product = products.find(p => p.id === productId);
+      const product = products.find(p => p.product_id === productId);
       return {
         ...prev,
         [productId]: Math.min(newQty, product.stock)
@@ -40,16 +40,16 @@ function ProductList() {
   };
 
   const handleOrder = async (product) => {
-    const quantity = quantities[product.id] || 1;
+    const quantity = quantities[product.product_id] || 1;
     
     try {
-      // Call the order API
-      await apiService.placeOrder(product.id, quantity);
+      // Call the order API with product_id
+      await apiService.placeOrder(product.product_id, quantity);
       
       // Show success message
       setOrderMessages(prev => ({
         ...prev,
-        [product.id]: `Ordered ${quantity} x ${product.name} successfully!`
+        [product.product_id]: `Ordered ${quantity} x ${product.name} successfully!`
       }));
 
       // Refresh products to get updated stock
@@ -59,7 +59,7 @@ function ProductList() {
       setTimeout(() => {
         setOrderMessages(prev => ({
           ...prev,
-          [product.id]: ''
+          [product.product_id]: ''
         }));
       }, 3000);
 
@@ -67,14 +67,14 @@ function ProductList() {
       // Show error message
       setOrderMessages(prev => ({
         ...prev,
-        [product.id]: `Failed to place order. Please try again.`
+        [product.product_id]: `Failed to place order. Please try again.`
       }));
 
       // Clear error message after 3 seconds
       setTimeout(() => {
         setOrderMessages(prev => ({
           ...prev,
-          [product.id]: ''
+          [product.product_id]: ''
         }));
       }, 3000);
 
@@ -127,7 +127,7 @@ function ProductList() {
       
       <div className="products-grid">
         {products.map(product => (
-          <div key={product.id} className="product-card">
+          <div key={product.product_id} className="product-card">
             <div className="product-name">{product.name}</div>
             <div className="product-price">${product.price}</div>
             <div className="product-stock">
@@ -137,22 +137,25 @@ function ProductList() {
             <p style={{color: '#7f8c8d', fontSize: '0.9rem', marginBottom: '1rem'}}>
               {product.description}
             </p>
+            <p style={{color: '#95a5a6', fontSize: '0.8rem', marginBottom: '1rem'}}>
+              Product ID: {product.product_id}
+            </p>
 
             {product.stock > 0 && (
               <>
                 <div className="quantity-controls">
                   <button 
                     className="quantity-btn"
-                    onClick={() => updateQuantity(product.id, -1)}
+                    onClick={() => updateQuantity(product.product_id, -1)}
                   >
                     -
                   </button>
                   <div className="quantity-display">
-                    {quantities[product.id] || 1}
+                    {quantities[product.product_id] || 1}
                   </div>
                   <button 
                     className="quantity-btn"
-                    onClick={() => updateQuantity(product.id, 1)}
+                    onClick={() => updateQuantity(product.product_id, 1)}
                   >
                     +
                   </button>
@@ -162,7 +165,7 @@ function ProductList() {
                   className="order-btn"
                   onClick={() => handleOrder(product)}
                 >
-                  Order Now - ${((quantities[product.id] || 1) * product.price).toFixed(2)}
+                  Order Now - ${((quantities[product.product_id] || 1) * product.price).toFixed(2)}
                 </button>
               </>
             )}
@@ -173,10 +176,10 @@ function ProductList() {
               </button>
             )}
 
-            {orderMessages[product.id] && (
-              <div className={`message ${orderMessages[product.id].includes('Failed') ? 'error-message' : 'success-message'}`} 
+            {orderMessages[product.product_id] && (
+              <div className={`message ${orderMessages[product.product_id].includes('Failed') ? 'error-message' : 'success-message'}`} 
                    style={{marginTop: '1rem'}}>
-                {orderMessages[product.id]}
+                {orderMessages[product.product_id]}
               </div>
             )}
           </div>

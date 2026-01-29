@@ -1,6 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import amqp from 'amqplib';
+import { v4 as uuid } from 'uuid';
 
 const app = express();
 app.use(express.json());
@@ -8,6 +9,21 @@ app.use(express.json());
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 const responseTimes = []; 
+let channel = null;
+
+// Initialize RabbitMQ connection
+async function initRabbitMQ() {
+  try {
+    const connection = await amqp.connect(process.env.RABBITMQ_URL);
+    channel = await connection.createChannel();
+    await channel.assertQueue('inventory_updates', { durable: true });
+    console.log('RabbitMQ connected and queue created');
+  } catch (error) {
+    console.error('Failed to connect to RabbitMQ:', error);
+  }
+}
+
+initRabbitMQ(); 
 
 app.get('/api/order-service/health', async (req, res) => {
   try {
@@ -57,9 +73,15 @@ app.get('/api/order-service/health', async (req, res) => {
 app.post('/api/order-service/orders', async (req, res) => {
     const { productId, quantity } = req.body;
     const requestId = req.body.requestId || uuid();
+    
+    if (!productId || !quantity || quantity <= 0) {
+        return res.status(400).json({ error: "Invalid productId or quantity" });
+    }
+    
     if (!channel) {
         return res.status(503).json({ error: "Messaging service not ready" });
     }
+    
     try {
         const orderResult = await pool.query(
             'INSERT INTO order_service.orders (product_id, quantity, status) VALUES ($1, $2, $3) RETURNING id',
@@ -77,6 +99,7 @@ app.post('/api/order-service/orders', async (req, res) => {
         });
 
     } catch (err) {
+        console.error('Error processing order:', err);
         res.status(500).json({ error: 'Failed to queue order' });
     }
 });

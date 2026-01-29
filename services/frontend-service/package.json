@@ -4,9 +4,9 @@
   "description": "React Frontend Service",
   "private": true,
   "scripts": {
-    "start": "react-scripts start",
+    "start": "HOST=0.0.0.0 react-scripts start",
     "build": "react-scripts build",
-    "dev": "react-scripts start"
+    "dev": "HOST=0.0.0.0 react-scripts start"
   },
   "dependencies": {
     "react": "^18.2.0",

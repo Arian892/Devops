@@ -71,3 +71,13 @@ services:
     depends_on:
       - inventory-service
       - order-service
+
+  frontend-service:
+    build: ./services/frontend-service
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8081
+    volumes:
+      - ./services/frontend-service/src:/app/src
+      - ./services/frontend-service/public:/app/public

@@ -103,13 +103,13 @@ function AdminPanel() {
       return;
     }
 
-    const productId = parseInt(restockData.productId);
+    const productId = restockData.productId; // Use string product_id, not parseInt
     const additionalStock = parseInt(restockData.quantity);
     
     try {
       await apiService.restockProduct(productId, additionalStock);
       
-      const productName = products.find(p => p.id === productId)?.name;
+      const productName = products.find(p => p.product_id === productId)?.name;
       setRestockData({ productId: '', quantity: '' });
       
       showSuccessMessage(`Added ${additionalStock} units to "${productName}" stock!`);
@@ -131,13 +131,13 @@ function AdminPanel() {
       return;
     }
 
-    const productId = parseInt(updateStockData.productId);
+    const productId = updateStockData.productId; // Use string product_id, not parseInt
     const newStock = parseInt(updateStockData.quantity);
     
     try {
       await apiService.updateStock(productId, newStock);
       
-      const productName = products.find(p => p.id === productId)?.name;
+      const productName = products.find(p => p.product_id === productId)?.name;
       setUpdateStockData({ productId: '', quantity: '' });
       
       showSuccessMessage(`Updated "${productName}" stock to ${newStock} units!`);
@@ -275,7 +275,7 @@ function AdminPanel() {
               >
                 <option value="">Choose a product...</option>
                 {products.map(product => (
-                  <option key={product.id} value={product.id}>
+                  <option key={product.product_id} value={product.product_id}>
                     {product.name} (Current stock: {product.stock})
                   </option>
                 ))}
@@ -319,7 +319,7 @@ function AdminPanel() {
               >
                 <option value="">Choose a product...</option>
                 {products.map(product => (
-                  <option key={product.id} value={product.id}>
+                  <option key={product.product_id} value={product.product_id}>
                     {product.name} (Current stock: {product.stock})
                   </option>
                 ))}
@@ -353,7 +353,7 @@ function AdminPanel() {
         <h2>Current Products</h2>
         <div className="products-grid">
           {products.map(product => (
-            <div key={product.id} className="product-card">
+            <div key={product.product_id} className="product-card">
               <div className="product-name">{product.name}</div>
               <div className="product-price">${product.price}</div>
               <div className="product-stock">
@@ -363,6 +363,9 @@ function AdminPanel() {
               </div>
               <p style={{color: '#7f8c8d', fontSize: '0.9rem'}}>
                 {product.description}
+              </p>
+              <p style={{color: '#95a5a6', fontSize: '0.8rem'}}>
+                Product ID: {product.product_id}
               </p>
             </div>
           ))}

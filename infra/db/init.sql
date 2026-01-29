@@ -19,3 +19,13 @@ CREATE TABLE IF NOT EXISTS order_service.orders (
     status TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Sample data for testing
+INSERT INTO inventory_service.inventory (product_id, quantity) VALUES
+    ('laptop-pro', 15),
+    ('wireless-mouse', 50),
+    ('mechanical-keyboard', 8),
+    ('monitor-4k', 12),
+    ('usb-c-hub', 25),
+    ('webcam-hd', 0)
+ON CONFLICT (product_id) DO NOTHING;
