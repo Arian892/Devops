@@ -36,6 +36,9 @@ async function consumeMessages() {
                         [quantity, productId]
                     );
                     console.log(`Inventory updated for Order: ${orderId}`);
+                    const notification = { orderId, status: 'COMPLETED', message: 'Inventory confirmed' };
+                    await channel.assertQueue('order_notifications', { durable: true });
+                    channel.sendToQueue('order_notifications', Buffer.from(JSON.stringify(notification)));
                     channel.ack(msg); 
                 } catch (err) {
                     console.error("Failed to process message:", err);
@@ -56,7 +59,7 @@ consumeMessages();
 app.use(
   "/api/inventory-service/update-stock",
   injectGremlin({
-    failureRate: 0.9,
+    failureRate: 0,
     minDelay: 2000,
     maxDelay: 7000,
   }),
@@ -127,6 +130,30 @@ app.post("/api/inventory-service/update-stock", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+app.get("/api/inventory-service/products-with-stock", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.id AS id, 
+        p.name AS name, 
+        p.price AS price, 
+        i.quantity AS stock
+      FROM 
+        inventory_service.product p
+      JOIN 
+        inventory_service.inventory i ON p.id = i.product_id
+      ORDER BY p.id ASC;
+    `;
+    
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error("Join Query Error:", err);
+    res.status(500).json({ error: "Failed to fetch products with stock levels" });
+  }
+});
+
 
 app.get("/api/inventory-service/products", async (req, res) => {
   try {

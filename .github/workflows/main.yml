@@ -1,0 +1,84 @@
+name: Microservices CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      # We spin up RabbitMQ and Postgres as sidecars for integration testing
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: my_app_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and Start Services
+        run: |
+          docker-compose up -d --build
+          # Give services a moment to initialize
+          sleep 15
+
+      - name: Run Deep Health Checks
+        run: |
+          echo "Testing Inventory Health..."
+          curl --fail http://localhost:8081/api/inventory-service/health || exit 1
+          
+          echo "Testing Order Service Health (and dependencies)..."
+          curl --fail http://localhost:8081/api/order-service/health || exit 1
+
+      - name: Seed Database
+        run: |
+          echo "Seeding products and inventory..."
+          # 1. Create a product in the catalog
+          docker exec devops-db-1 psql -U admin -d my_app_db -c \
+            "INSERT INTO inventory_service.product (name, price) VALUES ('CI-Test-Item', 99.99);"
+          
+          # 2. Initialize inventory for that product (assuming ID 1 since it's the first insert)
+          docker exec devops-db-1 psql -U admin -d my_app_db -c \
+            "INSERT INTO inventory_service.inventory (product_id, quantity) VALUES (1, 100);"
+          
+          echo "Database seeded successfully."
+
+      - name: Verify "Runs on my Machine" (Integration Test)
+        run: |
+          # Now we can safely order productId: 1
+          RESPONSE=$(curl -s -X POST http://localhost:8081/api/order-service/orders \
+            -H "Content-Type: application/json" \
+            -d '{"productId": 1, "quantity": 1}')
+          
+          echo "Service Response: $RESPONSE"
+          if [[ $RESPONSE == *"Accepted"* || $RESPONSE == *"immediately"* ]]; then
+            echo "Integration Test Passed!"
+          else
+            echo "Integration Test Failed!"
+            exit 1
+          fi
+
+      - name: Shutdown Services
+        if: always()
+        run: docker-compose down

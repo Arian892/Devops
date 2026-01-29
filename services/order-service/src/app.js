@@ -8,7 +8,7 @@ app.use(express.json());
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 
-let channel; // Declare globally so it's accessible everywhere
+let channel; 
 
 async function connectRabbitMQ() {
     const amqpUrl = 'amqp://admin:password@rabbitmq:5672';
@@ -33,6 +33,32 @@ async function connectRabbitMQ() {
 
 connectRabbitMQ();
 
+async function listenForNotifications() {
+    try {
+        const connection = await amqp.connect('amqp://admin:password@rabbitmq:5672');
+        const notifChannel = await connection.createChannel();
+        await notifChannel.assertQueue('order_notifications', { durable: true });
+
+        console.log("Order Service listening for inventory confirmations...");
+
+        notifChannel.consume('order_notifications', async (msg) => {
+            const { orderId, status } = JSON.parse(msg.content.toString());
+            
+            await pool.query(
+                'UPDATE order_service.orders SET status = $1 WHERE id = $2',
+                [status, orderId]
+            );
+            
+            console.log(`Order ${orderId} officially COMPLETED in database.`);
+            notifChannel.ack(msg);
+        });
+    } catch (err) {
+        console.error("Notification listener error:", err);
+        setTimeout(listenForNotifications, 5000);
+    }
+}
+
+listenForNotifications();
 
 const responseTimes = []; 
 
