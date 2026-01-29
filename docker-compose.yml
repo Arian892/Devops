@@ -71,3 +71,16 @@ services:
     depends_on:
       - inventory-service
       - order-service
+
+  frontend-service:
+    build: 
+      context: ./services/frontend-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./services/frontend-service:/app
+      - /app/node_modules
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - nginx
