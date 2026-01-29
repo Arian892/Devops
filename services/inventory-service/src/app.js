@@ -1,5 +1,4 @@
 import express from "express";
-import { jwtVerify, createRemoteJWKSet } from "jose";
 import { injectGremlin } from "./gremlin.js";
 import pg from "pg";
 
@@ -7,54 +6,6 @@ const app = express();
 app.use(express.json());
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-
-const JWKS = createRemoteJWKSet(new URL(process.env.AUTH_JWKS_URL));
-
-const authenticate = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer "))
-    return res.status(401).json({ error: "Missing token" });
-
-  const token = authHeader.split(" ")[1];
-
-  try {
-    console.log("Expected Iss:", process.env.JWT_ISSUER);
-
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: process.env.JWT_ISSUER,
-      audience: process.env.JWT_AUDIENCE,
-    });
-    console.log("Token Iss:", payload.iss);
-    req.user = payload;
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: "Unauthorized: " + e.message });
-  }
-};
-
-export const authorize = (allowedRoles = []) => {
-  return async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer "))
-      return res.status(401).json({ error: "Missing token" });
-    const token = authHeader.split(" ")[1];
-    try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: process.env.JWT_ISSUER,
-        audience: process.env.JWT_AUDIENCE,
-      });
-      if (allowedRoles.length > 0 && !allowedRoles.includes(payload.role)) {
-        return res.status(403).json({
-          error: `Forbidden: This action requires one of these roles: ${allowedRoles.join(", ")}`,
-        });
-      }
-      req.user = payload;
-      next();
-    } catch (e) {
-      return res.status(401).json({ error: "Unauthorized: " + e.message });
-    }
-  };
-};
 
 app.use(
   "/api/inventory-service/update-stock",
@@ -65,20 +16,21 @@ app.use(
   }),
 );
 
-app.get(
-  "/api/inventory-service/preferences",
-  async (req, res) => {
+app.get('/api/inventory-service/health', async (req, res) => {
     try {
-      const { rows } = await pool.query(
-        "SELECT * FROM user_preferences WHERE user_id = $1",
-        [req.user.id],
-      );
-      res.json({ user: req.user.email, preferences: rows[0] || {} });
-    } catch (err) {
-      res.status(500).json({ error: "Database error" });
+        await pool.query('SELECT 1');
+        return res.status(200).json({
+            status: 'UP',
+            service: 'inventory-service'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: 'DOWN',
+            service: 'inventory-service',
+            reason: 'Database unreachable'
+        });
     }
-  },
-);
+});
 
 app.post(
   "/api/inventory-service/restock", 
@@ -111,7 +63,7 @@ app.post(
 );
 
 app.post("/api/inventory-service/update-stock", async (req, res) => {
-  const { productId, quantity, orderId } = req.body;
+  const { productId, quantity } = req.body;
   try {
     const result = await pool.query(
       `UPDATE inventory_service.inventory 
@@ -130,44 +82,6 @@ app.post("/api/inventory-service/update-stock", async (req, res) => {
   }
 });
 
-// app.post("/api/inventory-service/update-stock", authorize(["admin"]), async (req, res) => {
-//   const { productId, quantity, requestId } = req.body; // Using requestId instead of orderId
-
-//   const client = await pool.connect();
-//   try {
-//     await client.query('BEGIN');
-
-//     const alreadyDone = await client.query(
-//       "INSERT INTO inventory_service.processed_transactions (request_id) VALUES ($1) ON CONFLICT DO NOTHING",
-//       [requestId]
-//     );
-
-//     if (alreadyDone.rowCount === 0) {
-//       await client.query('ROLLBACK');
-//       return res.status(200).json({ status: "success", message: "Duplicate request ignored" });
-//     }
-
-//     const result = await client.query(
-//       `UPDATE inventory_service.inventory SET quantity = quantity - $1 
-//        WHERE product_id = $2 AND quantity >= $1 RETURNING *`,
-//       [quantity, productId]
-//     );
-
-//     if (result.rowCount === 0) {
-//       throw new Error("INSUFFICIENT_STOCK");
-//     }
-
-//     await client.query('COMMIT');
-//     res.json({ status: "success" });
-
-//   } catch (err) {
-//     await client.query('ROLLBACK');
-//     const status = err.message === "INSUFFICIENT_STOCK" ? 400 : 500;
-//     res.status(status).json({ error: err.message });
-//   } finally {
-//     client.release();
-//   }
-// });
 
 const PORT = 3001;
 app.listen(PORT, () =>
