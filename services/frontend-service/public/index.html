@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Store</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .admin-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .admin-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+        }
+
+        .success {
+            background: #efe;
+            color: #363;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #363;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .product-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .product-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .product-price {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #27ae60;
+            margin-bottom: 15px;
+        }
+
+        .product-stock {
+            font-size: 1rem;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .order-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .quantity-input {
+            width: 80px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .quantity-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .order-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .order-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .no-products {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.2rem;
+            padding: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .admin-btn {
+                position: static;
+                margin-top: 20px;
+                display: inline-block;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛍️ Product Store</h1>
+            <p>Browse and order your favorite products</p>
+            <a href="/admin" class="admin-btn">⚙️ Admin Panel</a>
+        </div>
+        <div class="content">
+            <div id="message"></div>
+            <div id="loading" class="loading">Loading products...</div>
+            <div id="products" class="products-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = ''; // Use same origin - frontend service will proxy
+
+        let products = [];
+
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function fetchProducts() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                const response = await fetch(`${API_BASE_URL}/api/inventory-service/products`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                products = await response.json();
+                renderProducts();
+            } catch (error) {
+                console.error('Error fetching products:', error);
+                showMessage(`Error loading products: ${error.message}`, 'error');
+                document.getElementById('products').innerHTML = '<div class="no-products">Failed to load products. Please try again later.</div>';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderProducts() {
+            const productsDiv = document.getElementById('products');
+            
+            if (products.length === 0) {
+                productsDiv.innerHTML = '<div class="no-products">No products available. Contact admin to add products.</div>';
+                return;
+            }
+
+            productsDiv.innerHTML = products.map(product => `
+                <div class="product-card">
+                    <div class="product-name">${escapeHtml(product.name)}</div>
+                    <div class="product-price">$${parseFloat(product.price).toFixed(2)}</div>
+                    <div class="product-stock">Stock: <strong>${product.quantity || 0} units</strong></div>
+                    <div class="order-section">
+                        <input 
+                            type="number" 
+                            id="quantity-${product.id}" 
+                            class="quantity-input" 
+                            value="1" 
+                            min="1" 
+                            max="${product.quantity || 0}"
+                        >
+                        <button 
+                            class="order-btn" 
+                            onclick="orderProduct(${product.id})"
+                            ${(product.quantity || 0) === 0 ? 'disabled' : ''}
+                        >
+                            ${(product.quantity || 0) === 0 ? 'Out of Stock' : 'Order Now'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function orderProduct(productId) {
+            const quantityInput = document.getElementById(`quantity-${productId}`);
+            const quantity = parseInt(quantityInput.value);
+            
+            if (quantity <= 0) {
+                showMessage('Please enter a valid quantity', 'error');
+                return;
+            }
+
+            const product = products.find(p => p.id === productId);
+            if (quantity > (product.quantity || 0)) {
+                showMessage('Not enough stock available', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/order-service/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productId: productId.toString(),
+                        quantity: quantity
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage(`Order placed successfully! Order ID: ${result.orderId}`, 'success');
+                    // Refresh products to update stock
+                    setTimeout(() => fetchProducts(), 1000);
+                } else {
+                    showMessage(`Order failed: ${result.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error placing order:', error);
+                showMessage(`Error placing order: ${error.message}`, 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize the page
+        fetchProducts();
+        
+        // Refresh products every 30 seconds
+        setInterval(fetchProducts, 30000);
+    </script>
+</body>
+</html>

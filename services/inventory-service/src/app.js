@@ -130,7 +130,16 @@ app.post("/api/inventory-service/update-stock", async (req, res) => {
 
 app.get("/api/inventory-service/products", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM inventory_service.product");
+    const result = await pool.query(`
+      SELECT 
+        p.id, 
+        p.name, 
+        p.price,
+        COALESCE(i.quantity, 0) as quantity
+      FROM inventory_service.product p
+      LEFT JOIN inventory_service.inventory i ON p.id = i.product_id
+      ORDER BY p.id
+    `);
     res.status(200).json(result.rows);
   } catch (err) {
     console.error(err);
