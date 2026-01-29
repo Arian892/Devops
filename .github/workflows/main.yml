@@ -41,7 +41,7 @@ jobs:
         run: |
           docker compose up -d --build
           # Give services a moment to initialize
-          sleep 15
+          sleep 40
 
       - name: Run Deep Health Checks
         run: |
