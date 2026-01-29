@@ -2,9 +2,9 @@ name: Microservices CI/CD
 
 on:
   push:
-    branches: [ junaid ]
+    branches: [ main ]
   pull_request:
-    branches: [ junaid ]
+    branches: [ main ]
 
 jobs:
   test-and-build:
